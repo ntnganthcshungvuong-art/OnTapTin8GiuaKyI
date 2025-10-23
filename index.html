@@ -1,1 +1,190 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ôn tập giữa kì I – Tin học 8 (KNTT)</title>
+  <style>
+    :root{
+      --bg:#f6f9fc; --card:#fff; --ink:#0f172a; --muted:#475569;
+      --sky:#0ea5e9; --sky-100:#e0f2fe; --green:#10b981; --red:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    .container{max-width:980px;margin:32px auto;padding:0 16px}
+    h1{margin:8px 0 6px;color:var(--ink);font-weight:800}
+    .sub{color:var(--muted);margin-bottom:12px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px}
+    .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--sky-100);color:#0c4a6e;cursor:pointer}
+    .btn:hover{filter:brightness(0.98)}
+    .btn.primary{background:var(--sky);color:#fff}
+    .card{background:var(--card);border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 10px rgba(2,8,23,.06)}
+    .q-title{font-weight:700;margin-bottom:10px}
+    .q-img{max-width:100%;height:auto;display:block;margin:10px 0}
+    .opt{display:flex;gap:8px;align-items:flex-start;margin:6px 0;padding:8px;border-radius:10px;transition:.15s}
+    .opt:hover{background:#f1f5f9}
+    .muted{color:var(--muted)}
+    .hint{display:none;margin-top:8px;padding:10px;border-radius:10px;background:#f8fafc;border:1px dashed #cbd5e1}
+    .hint.show{display:block}
+    .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;border-radius:999px;padding:4px 10px;background:#eef2ff;color:#3730a3}
+    .score{font-weight:800}
+    .footer-note{margin-top:22px;color:var(--muted);font-size:13px}
+    .essay-box{width:100%;min-height:110px;border:1px solid #e2e8f0;border-radius:10px;padding:10px}
+    .good{color:var(--green)} .bad{color:var(--red)}
+    .hr{height:1px;background:#e2e8f0;margin:18px 0}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Ôn tập Giữa Kì I – Tin học 8</h1>
+    <div class="sub">Theo SGK <b>Kết nối tri thức với cuộc sống</b>. Có 30 câu trắc nghiệm + 2 câu tự luận, hỗ trợ gợi ý &amp; làm lại.</div>
+
+    <div class="toolbar">
+      <button id="btnRetryNoShuffle" class="btn">🔁 Làm lại (giữ thứ tự)</button>
+      <button id="btnRetryShuffle" class="btn">🎲 Làm lại (xáo câu &amp; đáp án)</button>
+      <button id="btnGrade" class="btn primary">✅ Chấm điểm trắc nghiệm</button>
+      <span id="score" class="pill">Điểm: <span class="score">0/0</span></span>
+    </div>
+
+    <div id="quiz"></div>
+
+    <div class="footer-note">Mẹo: đọc kĩ câu hỏi, soi “từ khóa” đúng – <i>siêu năng lực học sinh thời số</i> là biết hoài nghi có phương pháp.</div>
+  </div>
+
+  <script>
+  let ORIGINAL_DATA = null;
+
+  // Fisher–Yates
+  function shuffleArray(a){
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+  }
+  const clone = o => JSON.parse(JSON.stringify(o));
+
+  function shuffleOptions(q){
+    const pairs = q.options.map((t,i)=>({t,i}));
+    shuffleArray(pairs);
+    q.options = pairs.map(p=>p.t);
+    q.answer = pairs.findIndex(p=>p.i===q.answer);
+  }
+
+  async function loadData(){
+    const res = await fetch('data/tin8.json');
+    ORIGINAL_DATA = await res.json();
+    render(ORIGINAL_DATA, false);
+  }
+
+  function render(raw, doShuffle){
+    const data = clone(raw);
+    if(doShuffle){
+      shuffleArray(data.mcqs);
+      data.mcqs.forEach(shuffleOptions);
+    }
+    buildQuiz(data);
+  }
+
+  function buildQuiz(data){
+    const root = document.getElementById('quiz');
+    root.innerHTML = '';
+
+    // --- Phần TRẮC NGHIỆM ---
+    const mcWrap = document.createElement('div');
+    mcWrap.innerHTML = `<div class="card"><div class="q-title">PHẦN TRẮC NGHIỆM</div>
+                        <div class="muted">Chọn 1 đáp án đúng cho mỗi câu.</div></div>`;
+    root.appendChild(mcWrap.firstChild);
+
+    data.mcqs.forEach((q, idx)=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      const qid = `q${idx}`;
+
+      card.innerHTML = `
+        <div class="q-title">Câu ${idx+1}: ${q.stem}</div>
+        ${q.img ? `<img class="q-img" src="${q.img}" alt="minh họa">` : ``}
+        <div>${q.options.map((opt,oi)=>`
+          <label class="opt">
+            <input type="radio" name="${qid}" value="${oi}"/>
+            <span>${String.fromCharCode(65+oi)}. ${opt}</span>
+          </label>`).join('')}</div>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn hint-btn">Gợi ý</button>
+        </div>
+        <div class="hint">${q.hint || 'Hãy suy luận dựa trên khái niệm trong bài học.'}</div>
+      `;
+      root.appendChild(card);
+      card.querySelector('.hint-btn').addEventListener('click', ()=>{
+        card.querySelector('.hint').classList.toggle('show');
+      });
+    });
+
+    // --- Phần TỰ LUẬN ---
+    const es = document.createElement('div');
+    es.innerHTML = `<div class="card"><div class="q-title">PHẦN TỰ LUẬN</div>
+                    <div class="muted">Trả lời ngắn gọn, nêu rõ luận điểm &amp; ví dụ.</div></div>`;
+    root.appendChild(es.firstChild);
+
+    data.essay.forEach((e, i)=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="q-title">${e.title}</div>
+        <div class="muted" style="white-space:pre-line">${e.prompt}</div>
+        <textarea class="essay-box" placeholder="Nhập câu trả lời của em..."></textarea>
+        <div class="hr"></div>
+        <details>
+          <summary class="muted">Gợi ý chấm/ý chính</summary>
+          <div class="hint show" style="display:block">${e.rubric}</div>
+        </details>
+      `;
+      root.appendChild(card);
+    });
+
+    // Cập nhật tổng số câu
+    const scoreTag = document.querySelector('#score .score');
+    scoreTag.textContent = `0/${data.mcqs.length}`;
+  }
+
+  function grade(){
+    const cards = [...document.querySelectorAll('#quiz .card')];
+    let iQ = 0, correct = 0, total = 0;
+
+    cards.forEach(card=>{
+      const title = card.querySelector('.q-title');
+      if(!title || !title.textContent.trim().startsWith('Câu ')) return;
+
+      const name = 'q'+iQ;
+      const picked = card.querySelector(`input[name="${name}"]:checked`);
+      const ansIndex = window.__DATA_CURRENT?.mcqs?.[iQ]?.answer ?? null;
+
+      if(ansIndex!==null){
+        total++;
+        if(picked && +picked.value === +ansIndex){
+          correct++;
+          title.innerHTML = title.innerHTML.replace(/$/, ` <span class="good">✔ Đúng</span>`);
+        }else{
+          title.innerHTML = title.innerHTML.replace(/$/, ` <span class="bad">✘ Sai</span>`);
+        }
+      }
+      iQ++;
+    });
+
+    const scoreTag = document.querySelector('#score .score');
+    scoreTag.textContent = `${correct}/${total}`;
+  }
+
+  // expose current data to grade()
+  function setCurrentData(d){ window.__DATA_CURRENT = d; }
+
+  // Hook buttons
+  window.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('btnRetryNoShuffle').addEventListener('click', ()=>render(ORIGINAL_DATA,false));
+    document.getElementById('btnRetryShuffle').addEventListener('click', ()=>render(ORIGINAL_DATA,true));
+    document.getElementById('btnGrade').addEventListener('click', grade);
+    loadData().then(()=> setCurrentData(ORIGINAL_DATA));
+  });
+  </script>
+</body>
+</html>
 
